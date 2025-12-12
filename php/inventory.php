@@ -3,6 +3,19 @@
 // Démarrer la session
 session_start();
 
+// Timeout de session de 30 minutes
+$sessionTimeout = 1800; // 30 minutes en secondes
+
+if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > $sessionTimeout)) {
+    session_unset();
+    session_destroy();
+    http_response_code(401);
+    echo json_encode(['error' => true, 'message' => 'Session expirée']);
+    exit;
+}
+
+$_SESSION['LAST_ACTIVITY'] = time();
+
 // Vérifier si l'utilisateur est authentifié
 if (!isset($_SESSION['user'])) {
     header('Content-Type: application/json');
@@ -74,6 +87,89 @@ try {
             $data = json_decode($input, true);
             file_put_contents("$logDir/inventory_post.log", date('Y-m-d H:i:s') . " - Données: " . print_r($data, true) . "\n", FILE_APPEND);
 
+            // Gérer la suppression via POST
+            if (isset($data['action']) && $data['action'] === 'delete') {
+                if (!isset($data['id'])) {
+                    throw new Exception("ID manquant pour la suppression");
+                }
+
+                $id = intval($data['id']);
+                file_put_contents("$logDir/inventory_delete.log", date('Y-m-d H:i:s') . " - Suppression demandée pour ID: $id\n", FILE_APPEND);
+
+                // Supprimer d'abord toutes les commandes liées à cet article
+                $deleteOrdersStmt = $pdo->prepare("DELETE FROM orders WHERE inventory_id = ?");
+                $deleteOrdersStmt->execute([$id]);
+
+                // Supprimer l'article
+                $stmt = $pdo->prepare("DELETE FROM inventory WHERE id = ?");
+                $result = $stmt->execute([$id]);
+
+                if ($result) {
+                    file_put_contents("$logDir/inventory_delete.log", date('Y-m-d H:i:s') . " - Article supprimé, ID: $id\n", FILE_APPEND);
+
+                    ob_end_clean();
+                    echo json_encode(['success' => true]);
+                } else {
+                    throw new Exception("Échec de la suppression: " . implode(", ", $stmt->errorInfo()));
+                }
+                break;
+            }
+
+            // Gérer la mise à jour via POST avec action='update'
+            if (isset($data['action']) && $data['action'] === 'update') {
+                if (!isset($data['id'])) {
+                    throw new Exception("ID manquant pour la mise à jour");
+                }
+
+                $fields = [];
+                $params = [];
+
+                if (isset($data['material'])) {
+                    $fields[] = "material = ?";
+                    $params[] = $data['material'];
+                }
+                if (isset($data['supplier'])) {
+                    $fields[] = "supplier = ?";
+                    $params[] = $data['supplier'];
+                }
+                if (isset($data['category'])) {
+                    $fields[] = "category = ?";
+                    $params[] = $data['category'];
+                }
+                if (isset($data['stock'])) {
+                    $fields[] = "stock = ?";
+                    $params[] = $data['stock'];
+                }
+                if (isset($data['threshold'])) {
+                    $fields[] = "threshold = ?";
+                    $params[] = $data['threshold'];
+                }
+                if (isset($data['price'])) {
+                    $fields[] = "price = ?";
+                    $params[] = $data['price'];
+                }
+
+                if (empty($fields)) {
+                    throw new Exception("Aucune donnée à mettre à jour");
+                }
+
+                $params[] = $data['id'];
+                $sql = "UPDATE inventory SET " . implode(", ", $fields) . " WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $result = $stmt->execute($params);
+
+                if ($result) {
+                    file_put_contents("$logDir/inventory_post.log", date('Y-m-d H:i:s') . " - Article mis à jour, ID: " . $data['id'] . "\n", FILE_APPEND);
+
+                    ob_end_clean();
+                    echo json_encode(['success' => true]);
+                } else {
+                    throw new Exception("Échec de la mise à jour: " . implode(", ", $stmt->errorInfo()));
+                }
+                break;
+            }
+
+            // Insertion d'un nouvel article
             if (!isset($data['material']) || !isset($data['supplier']) || !isset($data['category']) || !isset($data['stock']) || !isset($data['threshold'])) {
                 throw new Exception("Données manquantes");
             }

@@ -2,10 +2,22 @@
 
 session_start();
 
+// Timeout de session de 30 minutes
+$sessionTimeout = 1800; // 30 minutes en secondes
+
+if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > $sessionTimeout)) {
+    session_unset();
+    session_destroy();
+    session_start();
+}
+
+$_SESSION['LAST_ACTIVITY'] = time();
+
 // Headers CORS
-header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Origin: https://hello-fermetures.com');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Credentials: true');
 header('Content-Type: application/json; charset=utf-8');
 
 // Gérer la requête OPTIONS
@@ -21,29 +33,36 @@ if (!file_exists($logDir)) {
 }
 
 try {
-    // Vérifier l'authentification pour les requêtes web
-    if (isset($_SESSION) && !isset($_SESSION['user'])) {
-        // Si c'est une requête web et que l'utilisateur n'est pas connecté
-        if (!isset($_GET['cron_token'])) {
-            http_response_code(401);
-            echo json_encode(['error' => true, 'message' => 'Non authentifié']);
-            exit;
-        }
-    }
-
     // Vérification du token pour les tâches cron (optionnel)
     $cronToken = $_GET['cron_token'] ?? null;
-    $expectedCronToken = 'hello_stock_cron_2024'; // Changez cette valeur
+    $expectedCronToken = 'hello_stock_cron_2024';
 
-    // Si un token cron est fourni, le vérifier
-    if ($cronToken && $cronToken !== $expectedCronToken) {
-        http_response_code(403);
-        echo json_encode(['error' => true, 'message' => 'Token invalide']);
+    // Si un token cron est fourni, exécuter les notifications
+    if ($cronToken) {
+        if ($cronToken !== $expectedCronToken) {
+            http_response_code(403);
+            echo json_encode(['error' => true, 'message' => 'Token invalide']);
+            exit;
+        }
+        require_once __DIR__ . '/stock_notifications.php';
         exit;
     }
 
-    require_once __DIR__ . '/stock_notifications.php';
-
+    // Vérifier l'authentification pour les requêtes normales
+    if (isset($_SESSION['user'])) {
+        // Utilisateur authentifié
+        echo json_encode([
+            'authenticated' => true,
+            'user' => $_SESSION['user']
+        ]);
+    } else {
+        // Utilisateur non authentifié
+        http_response_code(401);
+        echo json_encode([
+            'authenticated' => false,
+            'message' => 'Non authentifié'
+        ]);
+    }
 
 } catch (Exception $e) {
     // Log de l'erreur
@@ -55,7 +74,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Erreur lors de l\'exécution des notifications: ' . $e->getMessage()
+        'error' => 'Erreur lors de l\'exécution: ' . $e->getMessage()
     ]);
 }
 ?>

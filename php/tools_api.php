@@ -2,6 +2,19 @@
 // Démarrer la session
 session_start();
 
+// Timeout de session de 30 minutes
+$sessionTimeout = 1800; // 30 minutes en secondes
+
+if (isset($_SESSION['LAST_ACTIVITY']) && (time() - $_SESSION['LAST_ACTIVITY'] > $sessionTimeout)) {
+    session_unset();
+    session_destroy();
+    http_response_code(401);
+    echo json_encode(['error' => true, 'message' => 'Session expirée']);
+    exit;
+}
+
+$_SESSION['LAST_ACTIVITY'] = time();
+
 // Vérifier si l'utilisateur est authentifié
 if (!isset($_SESSION['user'])) {
     header('Content-Type: application/json');
@@ -62,6 +75,57 @@ try {
             $data = json_decode($input, true);
             file_put_contents("$logDir/tools_post.log", date('Y-m-d H:i:s') . " - Données: " . print_r($data, true) . "\n", FILE_APPEND);
 
+            // Gérer la suppression via POST
+            if (isset($data['action']) && $data['action'] === 'delete') {
+                if (!isset($data['id'])) {
+                    throw new Exception("ID manquant pour la suppression");
+                }
+
+                $id = intval($data['id']);
+                file_put_contents("$logDir/tools_delete.log", date('Y-m-d H:i:s') . " - Suppression demandée pour ID: $id\n", FILE_APPEND);
+
+                // Supprimer l'outil
+                $stmt = $pdo->prepare("DELETE FROM tools WHERE id = ?");
+                $result = $stmt->execute([$id]);
+
+                if ($result) {
+                    file_put_contents("$logDir/tools_delete.log", date('Y-m-d H:i:s') . " - Outil supprimé, ID: $id\n", FILE_APPEND);
+
+                    ob_end_clean();
+                    echo json_encode(['success' => true]);
+                } else {
+                    throw new Exception("Échec de la suppression: " . implode(", ", $stmt->errorInfo()));
+                }
+                break;
+            }
+
+            // Gérer la mise à jour via POST avec action='update'
+            if (isset($data['action']) && $data['action'] === 'update') {
+                if (!isset($data['id']) || !isset($data['name']) || !isset($data['supplier']) || !isset($data['quantity'])) {
+                    throw new Exception("Données manquantes pour la mise à jour");
+                }
+
+                // Mettre à jour l'outil
+                $stmt = $pdo->prepare("UPDATE tools SET name = ?, supplier = ?, quantity = ? WHERE id = ?");
+                $result = $stmt->execute([
+                    $data['name'],
+                    $data['supplier'],
+                    intval($data['quantity']),
+                    $data['id']
+                ]);
+
+                if ($result) {
+                    file_put_contents("$logDir/tools_post.log", date('Y-m-d H:i:s') . " - Outil mis à jour, ID: " . $data['id'] . "\n", FILE_APPEND);
+
+                    ob_end_clean();
+                    echo json_encode(['success' => true]);
+                } else {
+                    throw new Exception("Échec de la mise à jour: " . implode(", ", $stmt->errorInfo()));
+                }
+                break;
+            }
+
+            // Insertion d'un nouvel outil
             if (!isset($data['name']) || !isset($data['supplier']) || !isset($data['quantity'])) {
                 throw new Exception("Données manquantes");
             }
