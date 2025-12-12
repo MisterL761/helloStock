@@ -1,0 +1,13 @@
+# Autorise l'exécution PHP
+<Files "*.php">
+    Require all granted
+</Files>
+
+# Redirige tout vers index.html (sauf fichiers réels)
+RewriteEngine On
+RewriteBase /hello-stock/
+
+# Ne pas réécrire les fichiers/dossiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
