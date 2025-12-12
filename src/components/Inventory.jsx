@@ -204,8 +204,7 @@ const Inventory = ({ inventoryItems, stats, onAddArticle, onExport, onEditArticl
                                     </td>
                                     <td className="px-1 xl:px-8 py-1.5 xl:py-5">
                                         <ActionButtons
-                                            onUpdateStock={() => onUpdateStock(item.id)}
-                                            onEdit={() => onEditArticle(item.id)}
+                                            onEdit={() => onEditArticle(item)}
                                             onDelete={() => onDeleteArticle(item.id)}
                                         />
                                     </td>
