@@ -1,24 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
-import SupplierLogo from './SupplierLogo';
+import React, { useState } from 'react';
+import { X, Plus, Loader } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
 
+// Utilitaire de compression d'image
+const compressImage = async (file) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1280; // Largeur max suffisante pour écran
+                const MAX_HEIGHT = 1280;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Compression JPEG à 70% de qualité
+                canvas.toBlob((blob) => {
+                    const newFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(newFile);
+                }, 'image/jpeg', 0.7);
+            };
+        };
+    });
+};
+
 const formatDateForAPI = (date) => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-    }
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-        return date.split('/').reverse().join('-');
-    }
+    if (!date) return new Date().toISOString().split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) return date.split('/').reverse().join('-');
     try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) {
-            throw new Error("Format de date invalide");
-        }
-        return d.toISOString().split('T')[0];
-    } catch (e) {
-        console.error("Erreur de conversion de date:", e);
+        return new Date(date).toISOString().split('T')[0];
+    } catch {
         return new Date().toISOString().split('T')[0];
     }
 };
@@ -29,10 +64,15 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
         photos: [],
         date: new Date().toISOString().split('T')[0]
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [processingImages, setProcessingImages] = useState(false);
 
-    const handlePhotoChange = (e) => {
+    const handlePhotoChange = async (e) => {
+        setProcessingImages(true);
         const files = Array.from(e.target.files);
-        setFormData({ ...formData, photos: files });
+        const compressedFiles = await Promise.all(files.map(file => compressImage(file)));
+        setFormData(prev => ({ ...prev, photos: [...prev.photos, ...compressedFiles] }));
+        setProcessingImages(false);
     };
 
     const removePhoto = (index) => {
@@ -42,22 +82,19 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.client) return;
+        if (!formData.client || isSubmitting) return;
 
-        // Assurer que la date est au bon format
+        setIsSubmitting(true);
         const apiDate = formatDateForAPI(formData.date);
 
         try {
             const formDataToSend = new FormData();
-            formDataToSend.append('product', 'Produit reçu');
-            formDataToSend.append('supplier', 'Fournisseur');
             formDataToSend.append('client', formData.client);
             formDataToSend.append('date', apiDate);
 
-            // Pour compatibilité backend : envoyer la première photo comme 'photo' et les autres comme 'additional_photos[]'
+            // Gestion des photos
             if (formData.photos.length > 0) {
                 formDataToSend.append('photo', formData.photos[0]);
-                // Ajouter les photos supplémentaires si il y en a
                 if (formData.photos.length > 1) {
                     for (let i = 1; i < formData.photos.length; i++) {
                         formDataToSend.append('additional_photos[]', formData.photos[i]);
@@ -71,28 +108,35 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
                 credentials: 'include'
             });
 
-            const data = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error("Erreur parsing JSON:", text);
+                throw new Error("Réponse serveur invalide");
+            }
 
             if (data.success) {
                 onAdd({
                     id: data.id,
-                    product: 'Produit reçu',
-                    supplier: 'Fournisseur',
+                    product: 'Commande',
+                    supplier: 'Dépôt',
                     client: formData.client,
                     photo_path: data.photo_path || null,
                     photos_paths: data.photos_paths || [],
                     date: new Date(apiDate).toLocaleDateString('fr-FR'),
                     status: 'Reçu'
                 });
-                setFormData({
-                    client: '',
-                    photos: [],
-                    date: new Date().toISOString().split('T')[0]
-                });
+                setFormData({ client: '', photos: [], date: new Date().toISOString().split('T')[0] });
                 onClose();
+            } else {
+                alert(`Erreur: ${data.message || "Erreur inconnue"}`);
             }
         } catch (err) {
             alert(`Erreur lors de l'ajout: ${err.message}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -130,32 +174,17 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
                                 onChange={handlePhotoChange}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Vous pouvez sélectionner plusieurs photos</p>
+                            {processingImages && <p className="text-xs text-blue-600 mt-1">Traitement des images...</p>}
                         </div>
 
-                        {/* Prévisualisation des photos sélectionnées */}
                         {formData.photos.length > 0 && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Photos sélectionnées ({formData.photos.length})</label>
-                                <div className="grid grid-cols-2 gap-2.5 max-h-32 overflow-y-auto" style={{ minWidth: "44px", minHeight: "44px" }}>
-                                    {formData.photos.map((photo, index) => (
-                                        <div key={index} className="relative">
-                                            <img
-                                                src={URL.createObjectURL(photo)}
-                                                alt={`Aperçu ${index + 1}`}
-                                                className="w-full h-16 object-cover rounded border"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removePhoto(index)}
-                                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                                            >
-                                                ×
-                                            </button>
-                                            <p className="text-xs text-gray-500 mt-1 truncate">{photo.name}</p>
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                                {formData.photos.map((photo, index) => (
+                                    <div key={index} className="relative">
+                                        <img src={URL.createObjectURL(photo)} alt="Aperçu" className="w-full h-16 object-cover rounded border" />
+                                        <button type="button" onClick={() => removePhoto(index)} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">×</button>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -170,11 +199,9 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
                         </div>
                     </div>
                     <div className="flex space-x-3 mt-6">
-                        <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                            Annuler
-                        </button>
-                        <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            Ajouter
+                        <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Annuler</button>
+                        <button type="submit" disabled={isSubmitting || processingImages} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex justify-center items-center">
+                            {isSubmitting ? <Loader className="animate-spin h-5 w-5" /> : 'Ajouter'}
                         </button>
                     </div>
                 </form>

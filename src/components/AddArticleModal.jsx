@@ -63,7 +63,8 @@ const AddArticleModal = ({ isOpen, onClose, onAdd }) => {
                                     { value: 'trenois', logo: '/hello-stock/logos/trenois.jpg' },
                                     { value: 'pointp', logo: '/hello-stock/logos/pointp.png' },
                                     { value: 'boschat', logo: '/hello-stock/logos/boschat.jpeg' },
-                                    { value: 'berner', logo: '/hello-stock/logos/berner.png' }
+                                    { value: 'berner', logo: '/hello-stock/logos/berner.jpg' },
+                                    {value: 'somfy' , logo: '/hello-stock/logos/somfy.png' }
                                 ].map((supplier) => (
                                     <button
                                         key={supplier.value}

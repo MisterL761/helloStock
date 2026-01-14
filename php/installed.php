@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
+// Nettoyage buffer
 ob_start();
 
 try {
@@ -25,25 +26,17 @@ try {
 
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
-            // Récupérer EXACTEMENT les colonnes que vous me montrez
             $stmt = $pdo->query("SELECT id, received_id, product, supplier, quantity, installed_date, client, photos_paths FROM installed ORDER BY installed_date DESC");
             $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Traiter chaque ligne
             foreach ($result as &$item) {
-                // Convertir NULL en chaîne vide pour client
                 $item['client'] = $item['client'] ?? '';
-
-                // Traiter photos_paths
                 if (!empty($item['photos_paths']) && $item['photos_paths'] !== 'NULL') {
-                    // C'est du JSON, le décoder
                     $decoded = json_decode($item['photos_paths'], true);
                     $item['photos_paths'] = is_array($decoded) ? $decoded : [];
                 } else {
                     $item['photos_paths'] = [];
                 }
-
-                // Ajouter la date de received si nécessaire (pour compatibilité frontend)
                 $item['date'] = $item['installed_date'];
             }
 
@@ -55,6 +48,7 @@ try {
             $input = file_get_contents('php://input');
             $data = json_decode($input, true);
 
+            // Le backend attend "id" (de la table received)
             if (!isset($data['id'])) {
                 throw new Exception("ID du produit manquant");
             }
@@ -86,7 +80,7 @@ try {
                 $product['product'],
                 $product['supplier'],
                 $data['quantity'] ?? 1,
-                date('Y-m-d'),
+                date('Y-m-d H:i:s'), // Date et Heure actuelle
                 $client,
                 $photos_paths
             ]);
@@ -103,7 +97,14 @@ try {
             break;
 
         case 'DELETE':
+            // Support suppression via URL (?id=X) ou JSON Body ({ "id": X })
             $id = intval($_GET['id'] ?? 0);
+            if (!$id) {
+                $input = file_get_contents('php://input');
+                $data = json_decode($input, true);
+                $id = intval($data['id'] ?? 0);
+            }
+
             if (!$id) throw new Exception("ID manquant");
 
             $stmt = $pdo->prepare("DELETE FROM installed WHERE id = ?");

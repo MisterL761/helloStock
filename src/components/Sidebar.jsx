@@ -55,7 +55,7 @@ const Sidebar = ({ activeSidebar, onNavigate, isOpen, onClose, onLogout, user, i
                         <NavItem icon={Warehouse} label="Produits Reçus" id="received" active={activeSidebar === 'received'} />
                         <NavItem icon={CheckCheck} label="Produits Posés" id="installed" active={activeSidebar === 'installed'} />
                         <NavItem icon={AlertCircle} label="Produits Défectueux" id="defective" active={activeSidebar === 'defective'} />
-                        <NavItem icon={ToolCase} label="Inventaire" id="inventory" active={activeSidebar === 'inventory'} />
+                        <NavItem icon={ToolCase} label="Consommable" id="inventory" active={activeSidebar === 'inventory'} />
                         <NavItem icon={Drill} label="Outils" id="tools" active={activeSidebar === 'tools'} />
                         <NavItem icon={ClipboardList} label="Commande" id="orders" active={activeSidebar === 'orders'} />
                     </ul>

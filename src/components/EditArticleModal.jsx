@@ -79,7 +79,8 @@ const EditArticleModal = ({ isOpen, onClose, article, onSave }) => {
                                     { value: 'trenois', logo: './logos/trenois.jpg' },
                                     { value: 'pointp', logo: './logos/pointp.png' },
                                     { value: 'boschat', logo: './logos/boschat.jpeg' },
-                                    { value: 'berner', logo: './logos/berner.png' }
+                                    { value: 'berner', logo: './logos/berner.jpg' },
+                                    { value: 'somfy', logo: './logos/somfy.png' }
                                 ].map((supplier) => (
                                     <button
                                         key={supplier.value}
@@ -173,3 +174,4 @@ const EditArticleModal = ({ isOpen, onClose, article, onSave }) => {
 };
 
 export default EditArticleModal;
+

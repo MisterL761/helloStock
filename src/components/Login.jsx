@@ -13,7 +13,7 @@ const Login = ({ onLoginSuccess }) => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/auth.php?action=login', {
+            const response = await fetch('https://hello-fermetures.com/hello-stock/php/auth.php?action=login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -45,7 +45,7 @@ const Login = ({ onLoginSuccess }) => {
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
                         <Package className="text-white" size={32} />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">StockFlow Pro</h1>
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">Hello Stock</h1>
                     <p className="text-gray-500">Connectez-vous à votre compte</p>
                 </div>
 
@@ -109,15 +109,6 @@ const Login = ({ onLoginSuccess }) => {
                         {loading ? 'Connexion en cours...' : 'Se connecter'}
                     </button>
                 </form>
-
-                {/* Info compte par défaut */}
-                <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs text-blue-800 font-semibold mb-2">Comptes de test :</p>
-                    <div className="text-xs text-blue-700 space-y-1">
-                        <p><strong>Admin:</strong> admin / admin123</p>
-                        <p><strong>User:</strong> userstock / admin123</p>
-                    </div>
-                </div>
             </div>
         </div>
     );
