@@ -45,6 +45,7 @@ function App() {
     const [currentArticle, setCurrentArticle] = useState(null);
     const [currentTool, setCurrentTool] = useState(null);
 
+    // useDataFetching gère le chargement initial des données
     const {
         productsReceived,
         installedProducts,
@@ -54,16 +55,17 @@ function App() {
         stats,
         loading,
         refetch
-    } = useDataFetching(API_BASE);
+    } = useDataFetching(API_BASE, isAuthenticated);
 
+    // Vérification de l'authentification au chargement
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const response = await fetch(`${API_BASE}/check_stock_api.php`, { credentials: 'include' });
+                const response = await fetch(`${API_BASE}/auth.php?action=check`, { credentials: 'include' });
                 const data = await response.json();
-                if (data.authenticated) {
+                if (data.success && data.data && data.data.user) {
                     setIsAuthenticated(true);
-                    setUser(data.user);
+                    setUser(data.data.user);
                 }
             } catch (error) {
                 console.error('Erreur authentification:', error);
@@ -100,43 +102,49 @@ function App() {
         if (window.innerWidth < 768) setIsSidebarOpen(false);
     };
 
+    // --- Gestion des Produits Reçus ---
+
     const handleAddProduct = async (productData) => {
-        try {
-            const response = await fetch(`${API_BASE}/received.php`, { method: 'POST', body: productData, credentials: 'include' });
-            const data = await response.json();
-            if (data.success) {
-                await refetch();
-                setShowProductModal(false);
-                alert('Produit ajouté');
-            } else alert(`Erreur: ${data.message}`);
-        } catch (error) {
-            alert('Erreur ajout produit');
-        }
+        // La requête est gérée dans le modal, on rafraichit juste ici
+        await refetch();
+        setShowProductModal(false);
     };
 
     const handleMarkAsInstalled = async (productId) => {
         try {
-            const response = await fetch(`${API_BASE}/installed.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: productId, installed_date: new Date().toISOString().split('T')[0] }), credentials: 'include' });
+            const response = await fetch(`${API_BASE}/installed.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: productId }),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
                 alert('Produit marqué comme posé');
+            } else {
+                alert(`Erreur : ${data.message || 'Impossible de marquer comme posé'}`);
             }
         } catch (error) {
-            alert('Erreur');
+            alert('Erreur technique lors de l\'opération');
         }
     };
 
     const handleMarkAsDefective = async (productId) => {
         try {
-            const response = await fetch(`${API_BASE}/mark_defective.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: productId }), credentials: 'include' });
+            const response = await fetch(`${API_BASE}/defective.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: productId, action: 'transfer' }), // action inutile si le backend gère par défaut, mais gardé par précaution
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
                 alert('Produit marqué comme défectueux');
             }
         } catch (error) {
-            alert('Erreur');
+            alert('Erreur lors du marquage en défectueux');
         }
     };
 
@@ -147,7 +155,13 @@ function App() {
 
     const handleSaveEditedProduct = async (updatedProduct) => {
         try {
-            const response = await fetch(`${API_BASE}/received.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedProduct, action: 'update' }), credentials: 'include' });
+            // received.php attend un PUT pour la mise à jour sans photo
+            const response = await fetch(`${API_BASE}/received.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedProduct),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -163,35 +177,38 @@ function App() {
     const handleDeleteProduct = async (productId) => {
         if (!confirm('Supprimer ce produit ?')) return;
         try {
-            const response = await fetch(`${API_BASE}/received.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: productId, action: 'delete' }), credentials: 'include' });
+            // received.php DELETE attend l'ID dans l'URL
+            const response = await fetch(`${API_BASE}/received.php?id=${productId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
                 alert('Produit supprimé');
+            } else {
+                alert(`Erreur: ${data.message}`);
             }
         } catch (error) {
             alert('Erreur suppression');
         }
     };
 
+    // --- Gestion des Produits Défectueux ---
+
     const handleAddDefectiveProduct = async (productData) => {
-        try {
-            const response = await fetch(`${API_BASE}/defective.php`, { method: 'POST', body: productData, credentials: 'include' });
-            const data = await response.json();
-            if (data.success) {
-                await refetch();
-                setShowDefectiveProductModal(false);
-                alert('Produit défectueux ajouté');
-            }
-        } catch (error) {
-            alert('Erreur ajout');
-        }
+        await refetch();
+        setShowDefectiveProductModal(false);
     };
 
     const handleDeleteDefective = async (id) => {
         if (!confirm('Supprimer ce produit défectueux ?')) return;
         try {
-            const response = await fetch(`${API_BASE}/defective.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'delete' }), credentials: 'include' });
+            // defective.php DELETE attend l'ID dans l'URL
+            const response = await fetch(`${API_BASE}/defective.php?id=${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -201,11 +218,17 @@ function App() {
             alert('Erreur');
         }
     };
+
+    // --- Gestion des Produits Posés ---
 
     const handleDeleteInstalled = async (id) => {
         if (!confirm('Supprimer ce produit posé ?')) return;
         try {
-            const response = await fetch(`${API_BASE}/installed.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'delete' }), credentials: 'include' });
+            // installed.php DELETE attend l'ID dans l'URL
+            const response = await fetch(`${API_BASE}/installed.php?id=${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -216,9 +239,16 @@ function App() {
         }
     };
 
+    // --- Gestion de l'Inventaire (CORRECTIONS PRINCIPALES) ---
+
     const handleAddArticle = async (articleData) => {
         try {
-            const response = await fetch(`${API_BASE}/inventory.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...articleData, action: 'add' }), credentials: 'include' });
+            const response = await fetch(`${API_BASE}/inventory.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(articleData),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -237,7 +267,13 @@ function App() {
 
     const handleSaveEditedArticle = async (updatedArticle) => {
         try {
-            const response = await fetch(`${API_BASE}/inventory.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedArticle, action: 'update' }), credentials: 'include' });
+            // CORRECTION: Utilisation de PUT au lieu de POST pour éviter les doublons
+            const response = await fetch(`${API_BASE}/inventory.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedArticle),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -253,30 +289,46 @@ function App() {
     const handleDeleteArticle = async (id) => {
         if (!confirm('Supprimer cet article ?')) return;
         try {
-            const response = await fetch(`${API_BASE}/inventory.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'delete' }), credentials: 'include' });
+            // CORRECTION: Passage de l'ID dans l'URL pour la méthode DELETE
+            const response = await fetch(`${API_BASE}/inventory.php?id=${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
                 alert('Article supprimé');
             }
         } catch (error) {
-            alert('Erreur');
+            alert('Erreur suppression');
         }
     };
 
     const handleUpdateStock = async (id, quantity) => {
         try {
-            const response = await fetch(`${API_BASE}/inventory.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, stock: quantity, action: 'update_stock' }), credentials: 'include' });
+            // CORRECTION: Utilisation de PUT car c'est une mise à jour
+            const response = await fetch(`${API_BASE}/inventory.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, stock: quantity }),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) await refetch();
         } catch (error) {
-            console.error('Erreur:', error);
+            console.error('Erreur mise à jour stock:', error);
         }
     };
 
+    // Note: bulk_update.php n'est pas fourni, supposons qu'il utilise POST
     const handleBulkEdit = async (ids, updates) => {
         try {
-            const response = await fetch(`${API_BASE}/bulk_update.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, updates }), credentials: 'include' });
+            const response = await fetch(`${API_BASE}/bulk_update.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids, updates }),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -287,9 +339,16 @@ function App() {
         }
     };
 
+    // --- Gestion des Outils ---
+
     const handleAddTool = async (toolData) => {
         try {
-            const response = await fetch(`${API_BASE}/tools_api.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...toolData, action: 'add' }), credentials: 'include' });
+            const response = await fetch(`${API_BASE}/tools_api.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(toolData),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -308,7 +367,13 @@ function App() {
 
     const handleSaveEditedTool = async (updatedTool) => {
         try {
-            const response = await fetch(`${API_BASE}/tools_api.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedTool, action: 'update' }), credentials: 'include' });
+            // Correction potentielle: PUT pour tools_api.php également
+            const response = await fetch(`${API_BASE}/tools_api.php`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedTool),
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
@@ -324,7 +389,11 @@ function App() {
     const handleDeleteTool = async (id) => {
         if (!confirm('Supprimer cet outil ?')) return;
         try {
-            const response = await fetch(`${API_BASE}/tools_api.php`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'delete' }), credentials: 'include' });
+            // Correction: ID dans l'URL pour DELETE
+            const response = await fetch(`${API_BASE}/tools_api.php?id=${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
             const data = await response.json();
             if (data.success) {
                 await refetch();
