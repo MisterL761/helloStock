@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Loader } from 'lucide-react';
+import api from '../utils/Apiclient';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // Utilitaire de compression d'image (copié de AddProductModal)
 const compressImage = async (file) => {
@@ -113,13 +114,7 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                     }
                 }
 
-                const response = await fetch(`${API_BASE}/received.php`, {
-                    method: 'POST',
-                    body: formDataToSend,
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
+                const data = await api.productsReceived.add(formDataToSend);
                 if (data.success) {
                     onSave({
                         id: product.id,
@@ -197,10 +192,10 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                                     {product.photos_paths.slice(0, 6).map((photo, index) => (
                                         <img
                                             key={index}
-                                            src={`${API_BASE}/${photo}`}
+                                            src={`${API_BASE_URL.replace('/api', '')}/${photo}`}
                                             alt={`Photo ${index + 1}`}
                                             className="w-full h-16 object-cover rounded border cursor-pointer hover:scale-105 transition-transform"
-                                            onClick={() => window.open(`${API_BASE}/${photo}`, '_blank')}
+                                            onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/${photo}`, '_blank')}
                                         />
                                     ))}
                                     {product.photos_paths.length > 6 && (
