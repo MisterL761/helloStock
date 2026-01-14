@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 
-export const useDataFetching = (apiBase) => {
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+export const useDataFetching = () => {
     const [productsReceived, setProductsReceived] = useState([]);
     const [installedProducts, setInstalledProducts] = useState([]);
     const [defectiveProducts, setDefectiveProducts] = useState([]);
@@ -13,12 +15,12 @@ export const useDataFetching = (apiBase) => {
         setLoading(true);
         try {
             const [recRes, instRes, defRes, invRes, toolsRes, statsRes] = await Promise.all([
-                fetch(`${apiBase}/received.php`, { credentials: 'include' }),
-                fetch(`${apiBase}/installed.php`, { credentials: 'include' }),
-                fetch(`${apiBase}/defective.php`, { credentials: 'include' }),
-                fetch(`${apiBase}/inventory.php`, { credentials: 'include' }),
-                fetch(`${apiBase}/tools_api.php`, { credentials: 'include' }),
-                fetch(`${apiBase}/stats.php`, { credentials: 'include' })
+                fetch(`${API_BASE_URL}/received`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/installed`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/defective`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/inventory`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/tools`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/stats`, { credentials: 'include' })
             ]);
 
             const received = await recRes.json();
@@ -48,7 +50,7 @@ export const useDataFetching = (apiBase) => {
 
     useEffect(() => {
         fetchData();
-    }, [apiBase]);
+    }, []);
 
     return {
         productsReceived,

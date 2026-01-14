@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { X, Plus, Loader } from 'lucide-react';
+import { X, Loader } from 'lucide-react';
+import api from '../utils/Apiclient';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
-
-// Utilitaire de compression d'image
 const compressImage = async (file) => {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -13,7 +11,7 @@ const compressImage = async (file) => {
             img.src = event.target.result;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1280; // Largeur max suffisante pour écran
+                const MAX_WIDTH = 1280;
                 const MAX_HEIGHT = 1280;
                 let width = img.width;
                 let height = img.height;
@@ -34,7 +32,6 @@ const compressImage = async (file) => {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Compression JPEG à 70% de qualité
                 canvas.toBlob((blob) => {
                     const newFile = new File([blob], file.name, {
                         type: 'image/jpeg',
@@ -92,7 +89,6 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
             formDataToSend.append('client', formData.client);
             formDataToSend.append('date', apiDate);
 
-            // Gestion des photos
             if (formData.photos.length > 0) {
                 formDataToSend.append('photo', formData.photos[0]);
                 if (formData.photos.length > 1) {
@@ -102,20 +98,7 @@ const AddProductModal = ({ isOpen, onClose, onAdd }) => {
                 }
             }
 
-            const response = await fetch(`${API_BASE}/received.php`, {
-                method: 'POST',
-                body: formDataToSend,
-                credentials: 'include'
-            });
-
-            const text = await response.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error("Erreur parsing JSON:", text);
-                throw new Error("Réponse serveur invalide");
-            }
+            const data = await api.productsReceived.add(formDataToSend);
 
             if (data.success) {
                 onAdd({
