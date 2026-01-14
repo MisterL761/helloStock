@@ -5,7 +5,8 @@ import SupplierLogo from './SupplierLogo';
 import ActionButtons from './ActionButtons';
 import StatusBadge from './StatusBadge';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = API_BASE_URL.replace('/api', '');
 
 const Inventory = ({ inventoryItems, stats, onAddArticle, onExport, onEditArticle, onDeleteArticle, onUpdateStock, onBulkEdit }) => {
     const [supplierFilter, setSupplierFilter] = useState('');
