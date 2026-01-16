@@ -4,7 +4,8 @@ import PhotoViewer from './PhotoViewer';
 import StatusBadge from './StatusBadge';
 import ActionButtons from './ActionButtons';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = API_BASE_URL.replace('/api', '');
 
 const ProductsReceived = ({ products, onMarkAsInstalled, onMarkAsDefective, onAddProduct, onExport, onEditProduct, onDeleteProduct }) => {
     const [photoViewerOpen, setPhotoViewerOpen] = useState(false);

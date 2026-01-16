@@ -3,13 +3,14 @@ import { Plus, Search, Drill, Edit, Trash2 } from 'lucide-react';
 import ActionButtons from './ActionButtons';
 import SupplierLogo from './SupplierLogo';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = API_BASE_URL.replace('/api', '');
 
 const Tools = ({ toolsItems, onAddTool, onEditTool, onDeleteTool }) => {
     return (
         <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
             <div className="flex justify-between items-center mb-4 md:mb-6 flex-wrap gap-2.5" style={{ minWidth: "44px", minHeight: "44px" }}>
-                <h3 className="text-lg font-semibold text-gray-800">Outils</h3>
+                <h3 className="text-lg font-semibold text-gray-800">Outils </h3>
                 <div className="flex space-x-3">
                     <button onClick={onAddTool} className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-2 rounded-lg flex items-center text-sm">
                         <Plus className="mr-1 md:mr-2" size={18} /> <span className="hidden md:inline">Ajouter Outil</span> <span className="inline md:hidden">+</span>
@@ -40,7 +41,7 @@ const Tools = ({ toolsItems, onAddTool, onEditTool, onDeleteTool }) => {
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <div className="flex space-x-2">
-                                        <button onClick={() => onEditTool(item.id)} className="text-yellow-600 hover:text-yellow-800" title="Modifier">
+                                        <button onClick={() => onEditTool(item)} className="text-yellow-600 hover:text-yellow-800" title="Modifier">
                                             <Edit size={18} />
                                         </button>
                                         <button onClick={() => onDeleteTool(item.id)} className="text-red-600 hover:text-red-800" title="Supprimer">

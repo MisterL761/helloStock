@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 import SupplierLogo from './SupplierLogo';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = API_BASE_URL.replace('/api', '');
 
 const EditArticleModal = ({ isOpen, onClose, article, onSave }) => {
     const [formData, setFormData] = useState({
@@ -79,7 +80,8 @@ const EditArticleModal = ({ isOpen, onClose, article, onSave }) => {
                                     { value: 'trenois', logo: './logos/trenois.jpg' },
                                     { value: 'pointp', logo: './logos/pointp.png' },
                                     { value: 'boschat', logo: './logos/boschat.jpeg' },
-                                    { value: 'berner', logo: './logos/berner.png' }
+                                    { value: 'berner', logo: './logos/berner.jpg' },
+                                    { value: 'somfy', logo: './logos/somfy.png' }
                                 ].map((supplier) => (
                                     <button
                                         key={supplier.value}
@@ -173,3 +175,4 @@ const EditArticleModal = ({ isOpen, onClose, article, onSave }) => {
 };
 
 export default EditArticleModal;
+

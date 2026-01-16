@@ -1,24 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
-import SupplierLogo from './SupplierLogo';
+import { X, Plus, Loader } from 'lucide-react';
+import api from '../utils/Apiclient';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+// Utilitaire de compression d'image (copié de AddProductModal)
+const compressImage = async (file) => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1280;
+                const MAX_HEIGHT = 1280;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob((blob) => {
+                    const newFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    resolve(newFile);
+                }, 'image/jpeg', 0.7);
+            };
+        };
+    });
+};
 
 const formatDateForAPI = (date) => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return date;
-    }
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-        return date.split('/').reverse().join('-');
-    }
+    if (!date) return new Date().toISOString().split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) return date.split('/').reverse().join('-');
     try {
-        const d = new Date(date);
-        if (isNaN(d.getTime())) {
-            throw new Error("Format de date invalide");
-        }
-        return d.toISOString().split('T')[0];
-    } catch (e) {
-        console.error("Erreur de conversion de date:", e);
+        return new Date(date).toISOString().split('T')[0];
+    } catch {
         return new Date().toISOString().split('T')[0];
     }
 };
@@ -29,6 +64,8 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
         date: '',
         newPhotos: []
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [processingImages, setProcessingImages] = useState(false);
 
     useEffect(() => {
         if (product) {
@@ -40,75 +77,75 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
         }
     }, [product]);
 
-    const handlePhotoChange = (e) => {
+    const handlePhotoChange = async (e) => {
+        setProcessingImages(true);
         const files = Array.from(e.target.files);
-        setFormData({ ...formData, newPhotos: files });
+        const compressedFiles = await Promise.all(files.map(file => compressImage(file)));
+        setFormData(prev => ({ ...prev, newPhotos: [...prev.newPhotos, ...compressedFiles] }));
+        setProcessingImages(false);
     };
 
     const removeNewPhoto = (index) => {
         const newPhotos = formData.newPhotos.filter((_, i) => i !== index);
-        setFormData({ ...formData, newPhotos: newPhotos });
+        setFormData(prev => ({ ...prev, newPhotos }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.client) return;
+        if (!formData.client || isSubmitting) return;
 
-        // Assurer que la date est au bon format
+        setIsSubmitting(true);
         const apiDate = formatDateForAPI(formData.date);
 
         try {
-            // Si il y a de nouvelles photos, on utilise FormData, sinon JSON
+            // S'il y a de nouvelles photos, on utilise FormData via POST (endpoint spécial update_with_photos)
             if (formData.newPhotos.length > 0) {
                 const formDataToSend = new FormData();
                 formDataToSend.append('id', product.id);
-                formDataToSend.append('product', 'Produit reçu');
-                formDataToSend.append('supplier', 'Fournisseur');
                 formDataToSend.append('client', formData.client);
                 formDataToSend.append('date', apiDate);
                 formDataToSend.append('action', 'update_with_photos');
 
                 // Ajouter les nouvelles photos
-                if (formData.newPhotos.length > 0) {
-                    formDataToSend.append('photo', formData.newPhotos[0]);
-                    if (formData.newPhotos.length > 1) {
-                        for (let i = 1; i < formData.newPhotos.length; i++) {
-                            formDataToSend.append('additional_photos[]', formData.newPhotos[i]);
-                        }
+                formDataToSend.append('photo', formData.newPhotos[0]);
+                if (formData.newPhotos.length > 1) {
+                    for (let i = 1; i < formData.newPhotos.length; i++) {
+                        formDataToSend.append('additional_photos[]', formData.newPhotos[i]);
                     }
                 }
 
-                const response = await fetch(`${API_BASE}/received.php`, {
-                    method: 'POST',
-                    body: formDataToSend,
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
+                const data = await api.productsReceived.add(formDataToSend);
                 if (data.success) {
                     onSave({
                         id: product.id,
-                        product: 'Produit reçu',
-                        supplier: 'Fournisseur',
                         client: formData.client,
                         date: apiDate,
+                        // Conserver les autres champs existants
+                        product: product.product,
+                        supplier: product.supplier,
+                        status: product.status,
+                        // Mise à jour des photos
                         photos_paths: data.photos_paths || []
                     });
                 } else {
                     alert(`Erreur: ${data.message || "Échec de la modification"}`);
                 }
             } else {
-
+                // Pas de nouvelles photos, on appelle onSave qui utilisera la méthode PUT standard définie dans App.jsx
                 onSave({
                     id: product.id,
-                    product: 'Produit reçu',
-                    supplier: 'Fournisseur',
                     client: formData.client,
-                    date: apiDate
+                    date: apiDate,
+                    // Il est important de renvoyer aussi les champs "cachés" product et supplier
+                    // pour que le backend ne les écrase pas avec des valeurs par défaut si on utilise PUT
+                    product: product.product || 'Commande',
+                    supplier: product.supplier || 'Dépôt'
                 });
             }
         } catch (err) {
             alert(`Erreur lors de la modification: ${err.message}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -155,10 +192,10 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                                     {product.photos_paths.slice(0, 6).map((photo, index) => (
                                         <img
                                             key={index}
-                                            src={`${API_BASE}/${photo}`}
+                                            src={`${API_BASE_URL.replace('/api', '')}/${photo}`}
                                             alt={`Photo ${index + 1}`}
                                             className="w-full h-16 object-cover rounded border cursor-pointer hover:scale-105 transition-transform"
-                                            onClick={() => window.open(`${API_BASE}/${photo}`, '_blank')}
+                                            onClick={() => window.open(`${API_BASE_URL.replace('/api', '')}/${photo}`, '_blank')}
                                         />
                                     ))}
                                     {product.photos_paths.length > 6 && (
@@ -167,19 +204,6 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
-
-                        {/* Photo existante (rétrocompatibilité) */}
-                        {product.photo_path && !product.photos_paths && (
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Photo actuelle</label>
-                                <img
-                                    src={`${API_BASE}/${product.photo_path}`}
-                                    alt="Photo actuelle"
-                                    className="w-24 h-24 object-cover rounded border cursor-pointer hover:scale-105 transition-transform mb-3"
-                                    onClick={() => window.open(`${API_BASE}/${product.photo_path}`, '_blank')}
-                                />
                             </div>
                         )}
 
@@ -192,14 +216,14 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                                 onChange={handlePhotoChange}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Vous pouvez ajouter plusieurs nouvelles photos</p>
+                            {processingImages && <p className="text-xs text-blue-600 mt-1">Traitement des images...</p>}
                         </div>
 
                         {/* Prévisualisation des nouvelles photos */}
                         {formData.newPhotos.length > 0 && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Nouvelles photos sélectionnées ({formData.newPhotos.length})</label>
-                                <div className="grid grid-cols-2 gap-2.5 max-h-32 overflow-y-auto" style={{ minWidth: "44px", minHeight: "44px" }}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Nouvelles photos ({formData.newPhotos.length})</label>
+                                <div className="grid grid-cols-2 gap-2.5 max-h-32 overflow-y-auto">
                                     {formData.newPhotos.map((photo, index) => (
                                         <div key={index} className="relative">
                                             <img
@@ -214,7 +238,6 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                                             >
                                                 ×
                                             </button>
-                                            <p className="text-xs text-gray-500 mt-1 truncate">{photo.name}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -225,8 +248,8 @@ const EditProductModal = ({ isOpen, onClose, product, onSave }) => {
                         <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
                             Annuler
                         </button>
-                        <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            Enregistrer
+                        <button type="submit" disabled={isSubmitting || processingImages} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex justify-center items-center">
+                            {isSubmitting ? <Loader className="animate-spin h-5 w-5" /> : 'Enregistrer'}
                         </button>
                     </div>
                 </form>

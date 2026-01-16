@@ -2,7 +2,24 @@ import React, { useState } from 'react';
 import { Upload, Trash2 } from 'lucide-react';
 import PhotoViewer from './PhotoViewer';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = API_BASE_URL.replace('/api', '');
+
+// Fonction pour formater la date et l'heure
+const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    // Vérifier si la date est valide
+    if (isNaN(date.getTime())) return dateString;
+
+    return new Intl.DateTimeFormat('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+};
 
 const ProductsInstalled = ({ installedProducts, onExport, onDeleteInstalled }) => {
     const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
@@ -34,8 +51,8 @@ const ProductsInstalled = ({ installedProducts, onExport, onDeleteInstalled }) =
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photos</th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date
-                                Installation
+                            <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date & Heure
                             </th>
                             <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                         </tr>
@@ -80,7 +97,8 @@ const ProductsInstalled = ({ installedProducts, onExport, onDeleteInstalled }) =
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span
                                         className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        {item.installedDate}
+                                        {/* Utilisation de formatDateTime sur installed_date */}
+                                        {formatDateTime(item.installed_date)}
                                     </span>
                                 </td>
                                 <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -107,4 +125,4 @@ const ProductsInstalled = ({ installedProducts, onExport, onDeleteInstalled }) =
         </div>
     );
 }
-    export default ProductsInstalled;
+export default ProductsInstalled;

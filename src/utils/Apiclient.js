@@ -1,10 +1,5 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Configuration
-const API_BASE_URL = 'https://hello-fermetures.com/hello-stock/php';
-
-/**
- * Fonction générique pour faire des requêtes à l'API
- */
 const apiRequest = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}/${endpoint}`;
 
@@ -18,10 +13,8 @@ const apiRequest = async (endpoint, options = {}) => {
             },
         });
 
-        // Récupérer le texte brut d'abord
         const text = await response.text();
 
-        // Essayer de parser en JSON
         let result;
         try {
             result = JSON.parse(text);
@@ -30,7 +23,6 @@ const apiRequest = async (endpoint, options = {}) => {
             throw new Error(`Erreur serveur: Réponse invalide (${response.status})\n${text.substring(0, 200)}`);
         }
 
-        // Vérifier le statut HTTP
         if (!response.ok) {
             throw new Error(result.message || `Erreur HTTP ${response.status}`);
         }
@@ -42,131 +34,235 @@ const apiRequest = async (endpoint, options = {}) => {
     }
 };
 
-/**
- * API d'authentification
- */
 export const authAPI = {
-    // Connexion
     login: async (username, password) => {
-        return apiRequest('auth.php?action=login', {
+        return apiRequest('auth/login', {
             method: 'POST',
             body: JSON.stringify({ username, password }),
         });
     },
 
-    // Déconnexion
     logout: async () => {
-        return apiRequest('auth.php?action=logout', {
+        return apiRequest('auth/logout', {
             method: 'POST',
         });
     },
 
-    // Vérifier l'authentification
     check: async () => {
-        return apiRequest('auth.php?action=check');
+        return apiRequest('auth/check');
     },
 };
 
-/**
- * API des produits reçus
- */
 export const productsReceivedAPI = {
-    // Récupérer tous les produits reçus
     getAll: async () => {
-        return apiRequest('api.php?action=products_received', {
+        return apiRequest('received', {
             method: 'GET',
         });
     },
 
-    // Ajouter un produit reçu
-    add: async (productData) => {
-        return apiRequest('api.php?action=products_received', {
+    add: async (formData) => {
+        const url = `${API_BASE_URL}/received`;
+        const response = await fetch(url, {
             method: 'POST',
-            body: JSON.stringify(productData),
+            credentials: 'include',
+            body: formData,
         });
+
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Réponse invalide: ${text.substring(0, 200)}`);
+        }
+
+        if (!response.ok) {
+            throw new Error(result.message || `Erreur HTTP ${response.status}`);
+        }
+
+        return result;
     },
 
-    // Modifier un produit reçu
     update: async (productData) => {
-        return apiRequest('api.php?action=products_received', {
+        return apiRequest('received', {
             method: 'PUT',
             body: JSON.stringify(productData),
         });
     },
 
-    // Supprimer un produit reçu
     delete: async (id) => {
-        return apiRequest('api.php?action=products_received', {
+        return apiRequest(`received?id=${id}`, {
             method: 'DELETE',
+        });
+    },
+};
+
+export const productsInstalledAPI = {
+    getAll: async () => {
+        return apiRequest('installed', {
+            method: 'GET',
+        });
+    },
+
+    markAsInstalled: async (id, quantity = 1, client = '', photos_paths = []) => {
+        return apiRequest('installed', {
+            method: 'POST',
+            body: JSON.stringify({ id, quantity, client, photos_paths }),
+        });
+    },
+
+    delete: async (id) => {
+        return apiRequest(`installed?id=${id}`, {
+            method: 'DELETE',
+        });
+    },
+};
+
+export const productsDefectiveAPI = {
+    getAll: async () => {
+        return apiRequest('defective', {
+            method: 'GET',
+        });
+    },
+
+    add: async (formData) => {
+        const url = `${API_BASE_URL}/defective`;
+        const response = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Réponse invalide: ${text.substring(0, 200)}`);
+        }
+
+        if (!response.ok) {
+            throw new Error(result.message || `Erreur HTTP ${response.status}`);
+        }
+
+        return result;
+    },
+
+    markAsDefective: async (id) => {
+        return apiRequest('defective', {
+            method: 'POST',
             body: JSON.stringify({ id }),
         });
     },
-};
 
-/**
- * API des produits posés
- */
-export const productsInstalledAPI = {
-    // Récupérer tous les produits posés
-    getAll: async () => {
-        return apiRequest('api.php?action=products_installed', {
-            method: 'GET',
-        });
-    },
-
-    // Marquer un produit comme posé
-    markAsInstalled: async (product_id, installed_date) => {
-        return apiRequest('api.php?action=products_installed', {
-            method: 'POST',
-            body: JSON.stringify({ product_id, installed_date }),
+    delete: async (id) => {
+        return apiRequest(`defective?id=${id}`, {
+            method: 'DELETE',
         });
     },
 };
 
-/**
- * API de l'inventaire
- */
 export const inventoryAPI = {
-    // Récupérer tous les articles d'inventaire
     getAll: async () => {
-        return apiRequest('api.php?action=inventory', {
+        return apiRequest('inventory', {
             method: 'GET',
         });
     },
 
-    // Ajouter un article d'inventaire
     add: async (articleData) => {
-        return apiRequest('api.php?action=inventory', {
+        return apiRequest('inventory', {
             method: 'POST',
             body: JSON.stringify(articleData),
         });
     },
 
-    // Modifier un article d'inventaire
     update: async (articleData) => {
-        return apiRequest('api.php?action=inventory', {
+        return apiRequest('inventory', {
             method: 'PUT',
             body: JSON.stringify(articleData),
         });
     },
 
-    // Supprimer un article d'inventaire
     delete: async (id) => {
-        return apiRequest('api.php?action=inventory', {
+        return apiRequest(`inventory?id=${id}`, {
             method: 'DELETE',
-            body: JSON.stringify({ id }),
         });
     },
 };
 
-/**
- * Export par défaut avec toutes les APIs
- */
+export const ordersAPI = {
+    getAll: async () => {
+        return apiRequest('orders', {
+            method: 'GET',
+        });
+    },
+
+    add: async (orderData) => {
+        return apiRequest('orders', {
+            method: 'POST',
+            body: JSON.stringify(orderData),
+        });
+    },
+
+    update: async (orderData) => {
+        return apiRequest('orders', {
+            method: 'PUT',
+            body: JSON.stringify(orderData),
+        });
+    },
+
+    delete: async (inventory_id) => {
+        return apiRequest(`orders?inventory_id=${inventory_id}`, {
+            method: 'DELETE',
+        });
+    },
+};
+
+export const toolsAPI = {
+    getAll: async () => {
+        return apiRequest('tools', {
+            method: 'GET',
+        });
+    },
+
+    add: async (toolData) => {
+        return apiRequest('tools', {
+            method: 'POST',
+            body: JSON.stringify(toolData),
+        });
+    },
+
+    update: async (toolData) => {
+        return apiRequest('tools', {
+            method: 'PUT',
+            body: JSON.stringify(toolData),
+        });
+    },
+
+    delete: async (id) => {
+        return apiRequest(`tools?id=${id}`, {
+            method: 'DELETE',
+        });
+    },
+};
+
+export const statsAPI = {
+    get: async () => {
+        return apiRequest('stats', {
+            method: 'GET',
+        });
+    },
+};
+
 const api = {
     auth: authAPI,
     productsReceived: productsReceivedAPI,
     productsInstalled: productsInstalledAPI,
+    productsDefective: productsDefectiveAPI,
     inventory: inventoryAPI,
+    orders: ordersAPI,
+    tools: toolsAPI,
+    stats: statsAPI,
 };
 
 export default api;

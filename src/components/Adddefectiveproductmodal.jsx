@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
 import SupplierLogo from './SupplierLogo';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+import api from '../utils/Apiclient';
 
 const formatDateForAPI = (date) => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -55,10 +54,8 @@ const AddDefectiveProductModal = ({ isOpen, onClose, onAdd }) => {
             formDataToSend.append('date', apiDate);
             formDataToSend.append('action', 'add_defective');
 
-            // Pour compatibilité backend : envoyer la première photo comme 'photo' et les autres comme 'additional_photos[]'
             if (formData.photos.length > 0) {
                 formDataToSend.append('photo', formData.photos[0]);
-                // Ajouter les photos supplémentaires si il y en a
                 if (formData.photos.length > 1) {
                     for (let i = 1; i < formData.photos.length; i++) {
                         formDataToSend.append('additional_photos[]', formData.photos[i]);
@@ -66,13 +63,7 @@ const AddDefectiveProductModal = ({ isOpen, onClose, onAdd }) => {
                 }
             }
 
-            const response = await fetch(`${API_BASE}/defective.php`, {
-                method: 'POST',
-                body: formDataToSend,
-                credentials: 'include'
-            });
-
-            const data = await response.json();
+            const data = await api.productsDefective.add(formDataToSend);
 
             if (data.success) {
                 onAdd({

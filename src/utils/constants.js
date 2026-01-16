@@ -1,7 +1,5 @@
-// Configuration API
-export const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Fournisseurs disponibles
 export const SUPPLIERS = [
     { value: 'Wurth', logo: './logos/wurth.webp' },
     { value: 'Rekka', logo: './logos/reca.jpeg' },
@@ -12,7 +10,6 @@ export const SUPPLIERS = [
     { value: 'berner', logo: './logos/berner.png' }
 ];
 
-// Mapping des onglets vers les sections de la sidebar
 export const TAB_TO_SIDEBAR_MAPPING = {
     'received': 'produits-recus',
     'installed': 'produits-poses',
@@ -22,7 +19,6 @@ export const TAB_TO_SIDEBAR_MAPPING = {
     'orders': 'commandes'
 };
 
-// Mapping inverse: sidebar vers onglets
 export const SIDEBAR_TO_TAB_MAPPING = {
     'produits-recus': 'received',
     'produits-poses': 'installed',
@@ -32,7 +28,6 @@ export const SIDEBAR_TO_TAB_MAPPING = {
     'commandes': 'orders'
 };
 
-// Champs de recherche par type de données
 export const SEARCH_FIELDS = {
     productsReceived: ['product', 'supplier', 'client', 'date', 'status', 'id'],
     installedProducts: ['product', 'supplier', 'date', 'installedDate', 'id'],
@@ -41,7 +36,6 @@ export const SEARCH_FIELDS = {
     toolsItems: ['name', 'supplier', 'id']
 };
 
-// Types d'export disponibles
 export const EXPORT_TYPES = {
     'produits-recus': 'produits_recus',
     'produits-poses': 'produits_poses',
@@ -49,8 +43,6 @@ export const EXPORT_TYPES = {
     'inventaire': 'inventaire'
 };
 
-// Extensions d'images supportées
 export const IMAGE_EXTENSIONS = ['webp', 'jpeg', 'jpg', 'png', 'svg'];
 
-// Taille minimale pour les boutons tactiles (accessibilité)
 export const MIN_TOUCH_SIZE = { minWidth: "44px", minHeight: "44px" };

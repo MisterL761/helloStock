@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, ShoppingCart, CheckCircle } from 'lucide-react';
 import SupplierLogo from './SupplierLogo';
 import StatusBadge from './StatusBadge';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '/hello-stock/php';
+import api from '../utils/Apiclient';
 
 const Orders = ({ inventoryItems, onToggleOrder }) => {
     const [orderedItems, setOrderedItems] = useState(new Set());
@@ -24,10 +23,7 @@ const Orders = ({ inventoryItems, onToggleOrder }) => {
 
     const loadExistingOrders = async () => {
         try {
-            const response = await fetch(`${API_BASE}/orders.php`, {
-                credentials: 'include'
-            });
-            const orders = await response.json();
+            const orders = await api.orders.getAll();
 
             if (Array.isArray(orders)) {
                 const orderedSet = new Set();
@@ -53,36 +49,20 @@ const Orders = ({ inventoryItems, onToggleOrder }) => {
 
         try {
             if (!isCurrentlyOrdered) {
-                // Marquer comme commandé
-                const response = await fetch(`${API_BASE}/orders.php`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        inventory_id: inventoryId,
-                        is_ordered: true,
-                        ordered_quantity: suggestedQty
-                    })
+                const data = await api.orders.update({
+                    inventory_id: inventoryId,
+                    is_ordered: true,
+                    ordered_quantity: suggestedQty
                 });
-
-                const data = await response.json();
                 if (data.success) {
                     setOrderedItems(prev => new Set([...prev, inventoryId]));
                     setOrderedQuantities(prev => ({ ...prev, [inventoryId]: suggestedQty }));
                 }
             } else {
-                // Démarquer comme commandé
-                const response = await fetch(`${API_BASE}/orders.php`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        inventory_id: inventoryId,
-                        is_ordered: false
-                    })
+                const data = await api.orders.update({
+                    inventory_id: inventoryId,
+                    is_ordered: false
                 });
-
-                const data = await response.json();
                 if (data.success) {
                     setOrderedItems(prev => {
                         const newSet = new Set(prev);
